@@ -16,13 +16,15 @@ ss = st.session_state
 
 
 def _acil() -> None:
-    parca = " · ".join(f"<b>{html.escape(n)}</b> {html.escape(a)}" for n, a in ACIL_HATLAR)
-    st.markdown(f"<div class='emergency'>Acil bir tehlike varsa beklemeyin: {parca}</div>", unsafe_allow_html=True)
+    from i18n import translate as _tr
+    parca = " · ".join(f"<b>{html.escape(n)}</b> {html.escape(_tr(a))}" for n, a in ACIL_HATLAR)
+    st.markdown(f"<div class='emergency'>{html.escape(_tr('Acil bir tehlike varsa beklemeyin:'))} {parca}</div>", unsafe_allow_html=True)
 
 
 def _baslik(ust: str, baslik: str, aciklama: str) -> None:
-    st.markdown(f"<div class='page-heading'><div class='eyebrow-dark'>{html.escape(ust)}</div>"
-                f"<h1>{html.escape(baslik)}</h1><p>{html.escape(aciklama)}</p></div>", unsafe_allow_html=True)
+    from i18n import translate as _tr
+    st.markdown(f"<div class='page-heading'><div class='eyebrow-dark'>{html.escape(_tr(ust))}</div>"
+                f"<h1>{html.escape(_tr(baslik))}</h1><p>{html.escape(_tr(aciklama))}</p></div>", unsafe_allow_html=True)
 
 
 # ============================================================ B) DESTEK REHBERİ
@@ -101,8 +103,9 @@ def destek() -> None:
 # ======================================================= D) TREND VE ORTAM ANALİZİ
 def _isi_tablosu(matris: dict, satirlar: list[str], sutunlar: list[str]) -> str:
     """Ortam × olay türü ısı tablosu (bağımlılıksız HTML). Gizlenen hücreler '·' ile gösterilir."""
+    from i18n import translate as _tr
     en_buyuk = max(matris.values(), default=1)
-    bas = "".join(f"<th style='padding:.4rem;font-size:.75rem'>{html.escape(c)}</th>" for c in sutunlar)
+    bas = "".join(f"<th style='padding:.4rem;font-size:.75rem'>{html.escape(_tr(c))}</th>" for c in sutunlar)
     govde = []
     for r in satirlar:
         hucre = []
@@ -114,7 +117,7 @@ def _isi_tablosu(matris: dict, satirlar: list[str], sutunlar: list[str]) -> str:
                 a = 0.15 + 0.75 * v / en_buyuk
                 hucre.append(f"<td style='text-align:center;font-weight:700;background:rgba(49,95,150,{a:.2f});"
                              f"color:{'#fff' if a > .55 else '#1d2b3d'}'>{v}</td>")
-        govde.append(f"<tr><th style='text-align:left;padding:.4rem;font-size:.8rem'>{html.escape(r)}</th>"
+        govde.append(f"<tr><th style='text-align:left;padding:.4rem;font-size:.8rem'>{html.escape(_tr(r))}</th>"
                      + "".join(hucre) + "</tr>")
     return ("<div style='overflow-x:auto'><table style='border-collapse:collapse;width:100%'>"
             f"<tr><th></th>{bas}</tr>{''.join(govde)}</table></div>")
@@ -136,8 +139,9 @@ def trend() -> None:
     m = st.columns(3)
     m[0].metric("Kayıt sayısı", o["toplam"])
     en_cok_ortam = next(iter(o["ortam"]), "—")
-    m[1].metric("En çok bildirilen ortam", en_cok_ortam)
-    m[2].metric("En çok bildirilen tür", next(iter(o["tur"]), "—"))
+    from i18n import translate as _tr
+    m[1].metric("En çok bildirilen ortam", _tr(en_cok_ortam))
+    m[2].metric("En çok bildirilen tür", _tr(next(iter(o["tur"]), "—")))
 
     st.subheader("Ne zaman bildiriliyor?")
     a, b = st.columns(2, gap="large")
@@ -151,7 +155,7 @@ def trend() -> None:
     st.bar_chart(o["hafta"])
     st.caption("Bildirim sayısındaki artış, olayların arttığını değil bildirme isteğinin arttığını da gösterebilir; "
                "ayrım için ayrı bir ölçüm (ör. anket) gerekir. Saat, olayın değil bildirimin saatidir; "
-               "anonim kayıtlarda zaman saate yuvarlanır.")
+               "anonim kayıtlarda zaman dakika ve saniye hassasiyetinde kaydedilir.")
 
     st.subheader("Hangi ortamda, hangi tür?")
     d1, d2 = st.columns(2, gap="large")
@@ -263,8 +267,10 @@ def _onam_simulasyonu() -> None:
         st.markdown("Bu aşamadan sonra katılımcı bildirim formunu kullanabilir. Katılımcıdan **ad, sınıf, telefon "
                     "istenmez**; onay kaydı bu uygulamada tutulmaz, okulda yazılı saklanır.")
         st.button("Baştan başla", on_click=_onam_sifirla, key="onam_reset")
-    st.download_button("Gönüllü katılım ve veli onam formu taslağı (.txt)", ONAM_TASLAK,
-                       file_name="onam_formu_taslak.txt", mime="text/plain")
+    from i18n import translate as _tr
+    ingilizce = ss.get("dil", "Türkçe") == "English"
+    st.download_button("Gönüllü katılım ve veli onam formu taslağı (.txt)", _tr(ONAM_TASLAK),
+                       file_name="consent_form_draft.txt" if ingilizce else "onam_formu_taslak.txt", mime="text/plain")
 
 
 def kvkk(yonetici: bool) -> None:
@@ -280,7 +286,7 @@ def kvkk(yonetici: bool) -> None:
         st.markdown("**Veri minimizasyonu (sistemde uygulananlar)**")
         st.markdown("- Formda ad, sınıf, telefon istenmez.\n"
                     "- Açıklamadaki T.C. no, telefon, e-posta, IBAN maskelenir; ham metin saklanmaz.\n"
-                    "- Anonim kayıt ve ek bilgi zamanı saate yuvarlanır.\n"
+                    "- Anonim kayıt ve ek bilgi zamanı dakika ve saniye hassasiyetinde kaydedilir.\n"
                     "- Cihaz jetonu yalnızca özet olarak ve 1 gün saklanır; rapora bağlanmaz.\n"
                     "- Öğrenci sorgusunda açıklama, not ve değerlendirme gösterilmez.")
         st.markdown("**Açık riskler (raporda belirtilmeli)**")

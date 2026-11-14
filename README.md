@@ -23,6 +23,7 @@ Testler (ek bağımlılık gerekmez): `python -m unittest discover -s testler -v
 | `degerlendirme.py` | Sentetik etiketli küme + precision/recall/F1 |
 | `stil.py` | CSS (harici yazı tipi/CDN yok) |
 | `ek_sayfalar.py` | Destek rehberi, trend/ortam analizi, gizlilik ve KVKK paneli (onam akışı simülasyonu) |
+| `i18n.py` | 7 dil için merkezi çeviri altyapısı, temel arayüz sözlüğü, tarih-saat biçimi ve RTL yön bilgisi |
 | `testler/` | Birim testleri |
 
 ## v1 → v2: düzeltilen hatalar
@@ -40,7 +41,7 @@ Testler (ek bağımlılık gerekmez): `python -m unittest discover -s testler -v
 Öncelik sinyali ve kuyruk sıralaması · kişisel veri maskeleme (T.C. no sağlama toplamı dâhil) · takip kodu ile
 durum sorgulama · hatalı giriş kilidi + oturum zaman aşımı + PBKDF2 parola özeti · denetim kaydı ·
 yönetici işlemlerinde "kim yaptı" bilgisi · CSV dışa aktarım (kimlik varsayılan hariç) · saklama süresi temizliği ·
-anonim kayıtlarda zaman yuvarlama · yanıt süresi metrikleri · otomatik algılayıcı değerlendirmesi.
+anonim kayıtlarda saniye hassasiyetli zaman damgası · yanıt süresi metrikleri · otomatik algılayıcı değerlendirmesi.
 
 ## Bilimsel doğrulama yol haritası (TÜBİTAK için)
 1. Araştırma sorusu ve hipotezlerin yazılması (ör. "Kural tabanlı sinyal, yönetici inceleme sırasını iyileştirir mi?").
@@ -94,6 +95,28 @@ Not: Eski veritabanında daha önce saat başına yuvarlanmış zaman damgaları
 
 
 ### Uygulama notları
-- Dil seçimi oturum boyunca korunur. Menü, ana bileşen başlıkları ve seçenek etiketleri için TR/EN katmanı eklendi; okul rehberi ve uzun bilgilendirme metinlerinin tamamı yayımdan önce iki dilli editoryal kontrolden geçirilmelidir.
+- Dil seçimi Streamlit oturumunda korunur. Menü, formlar, seçenekler, yönetici ekranları, rehberlik içerikleri, uyarılar, tablolar ve bilgilendirme metinleri için TR/EN çeviri kataloğu kullanılır. Resmî/hukuki metinler gerçek kullanımdan önce yetkili kişilerce ayrıca gözden geçirilmelidir.
 - SLA süresi her sayfa yenilemesinde/etkileşimde yeniden hesaplanır. Canlı saniyelik otomatik yenileme kullanılmaz; gereksiz arka plan yenilemesi ve veritabanı yükü oluşturulmaz.
 - Rehberlik önerileri karar veya klinik yönlendirme değildir; okul psikolojik danışmanı tarafından onaylanmalıdır.
+
+
+## Türkçe / English arayüz desteği
+
+- Kenar çubuğundaki **Language / Dil** seçicisinden Türkçe veya English seçilebilir.
+- Çeviri yalnızca arayüz katmanında uygulanır; SQLite içindeki sabit değerler, geçmiş kayıtlar ve rapor metinleri değiştirilmez.
+- Kullanıcıların yazdığı bildirim açıklamaları ve yönetici notları otomatik çevrilmez; özgün içerikleri korunur.
+- Okulun resmî adı (**Bozüyük Fen Lisesi**), proje adı (**Güvenli Okul**) ve diğer özel kurum adları değiştirilmez.
+- Tarihler Türkçe arayüzde `GG.AA.YYYY · SS:DD:SS`, İngilizce arayüzde `Mon DD, YYYY · HH:MM:SS AM/PM` biçiminde gösterilir. Kayıtlar `Europe/Istanbul` saat dilimindeki mevcut veritabanı biçiminde saklanmaya devam eder.
+- Yeni `i18n.py` modülü arayüz çevirilerini ve yerelleştirilmiş zaman gösterimini yönetir. Ek bir Python paketi gerektirmez.
+
+Dil seçimi Streamlit oturum durumunda tutulur. Uygulama yeniden başlatıldığında kullanıcı yeni oturumda varsayılan Türkçe ile başlar.
+
+
+## v2.4 — Çoklu dil altyapısı (TR / EN / DE / FR / ES / AR / AZ)
+- Dil seçimi Türkçe, English, Deutsch, Français, Español, العربية ve Azərbaycan dili seçeneklerini içerir.
+- Çeviri çağrıları merkezi `i18n.py` modülüne yönlendirilir; `set_language()` ile oturumun seçili dili uygulama genelinde kullanılır.
+- Arapça seçildiğinde arayüz için RTL (sağdan sola) yön kuralları uygulanır; takip kodu gibi Latin karakterli alanlar LTR tutulur.
+- Tarih/saat gösterimleri dil bazında biçimlendirilir; veritabanındaki zaman damgaları değiştirilmez.
+- Serbest kullanıcı açıklamaları, yönetici notları ve okul/proje adları otomatik çevrilmez.
+
+**Çeviri kapsamı hakkında dürüst not:** Bu sürüm, yedi dilli seçim ve merkezi yönlendirme altyapısını kurar; yeni eklenen Almanca, Fransızca, İspanyolca, Arapça ve Azerbaycan Türkçesi sözlükleri temel gezinme, bildirim, durum, öncelik ve sık kullanılan form terimlerini kapsar. Destek rehberi, KVKK/onam metinleri, araştırma açıklamaları ve bazı uzun bilgilendirme paragraflarının tamamı henüz bu beş dile çevrilmiş değildir; eksik anahtarlar kaynak Türkçe metin olarak kalır. Bu nedenle bu sürüm, kapsamlı çeviri tamamlanana ve ana dili konuşan kişilerce gözden geçirilene kadar çok dilli beta olarak değerlendirilmelidir.

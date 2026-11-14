@@ -67,40 +67,12 @@ _veritabanini_hazirla()
 
 # ------------------------------------------------------------ oturum durumu
 
-_CEVIRI = {
-"Genel bakış":"Overview","Yeni bildirim":"New report","Bildirim sorgula":"Track a report","Destek rehberi":"Support guide",
-"Yönetici girişi":"Administrator login","Bildirim inceleme":"Report review","İstatistikler":"Statistics",
-"Trend ve ortam":"Trends and environment","Gizlilik ve KVKK":"Privacy and data protection","Araştırma ve test":"Research and testing",
-"Güvenli kullanım":"Safe use","KULLANICI":"USER","YÖNETİM":"ADMINISTRATION","KURUMSAL":"INFORMATION","OTURUM":"SESSION",
-"Oturumu kapat":"Sign out","Ziyaretçi (giriş yapılmadı)":"Visitor (not signed in)","Yönetici özeti":"Administrator dashboard",
-"Açık kayıt":"Open reports","Toplam kayıt":"Total reports","Nasıl kullanılır?":"How it works",
-"Yönetici erişimi gerekli":"Administrator access required","Bu bölümü görüntülemek için yönetici oturumu açın.":"Sign in as an administrator to view this section.",
-"Yönetici girişine git":"Go to administrator login","Kayıt kuyruğu":"Report queue","Kayıt ara":"Search reports",
-"İnceleme durumu":"Review status","Öncelik sinyali":"Priority signal","Bildirim türü":"Report type","Sorumlu birim":"Responsible team",
-"Sıralama":"Sort by","Tüm durumlar":"All statuses","Tüm birimler":"All teams","Öncelik (yüksekten)":"Priority (highest first)",
-"En yeni önce":"Newest first","En eski önce":"Oldest first","Kayıt seç":"Select report","Seçili kayıt":"Selected report",
-"Bildirim ayrıntıları":"Report details","Olay türü":"Incident type","Ortam":"Location","Yaklaşık zaman":"Approximate time",
-"Tekrarlanma":"Frequency","Oluşturulma":"Created","Açıklama":"Description","İnceleme ve yönlendirme":"Review and assignment",
-"Değişiklikleri kaydet":"Save changes","İnceleme notları":"Review notes","Yeni not":"New note","Notu kaydet":"Save note",
-"İşlem geçmişi":"Activity history","Günlük Durum Özeti":"Daily Status Summary","Bugünkü yeni bildirim":"New reports today",
-"Aktif yüksek/acil":"Active high/urgent","İnceleme bekleyen":"Awaiting review","Acil öncelikli bildirim":"Urgent-priority report",
-"Yüksek öncelikli bildirim":"High-priority report","Rehberlik için önerilen adımlar":"Suggested guidance steps",
-"Tarih aralığı":"Date range","Başlangıç tarihi":"Start date","Bitiş tarihi":"End date",
-"Bu filtrelerle eşleşen kayıt bulunamadı.":"No reports match these filters.","Kullanıcı adı":"Username","Parola":"Password",
-"Giriş yap":"Sign in","Yönetici oturumu açık.":"Administrator session is active.","Bildirim incelemeye git":"Go to report review",
-"Güvenli bir okul, herkesin hakkı.":"A safe school is everyone's right.",
-"Zorbalığı kimliğini vermeden bildir, gizli kodunla durumu takip et.":"Report bullying anonymously and track it with your private code.",
-"Anonim":"Anonymous","Gizli takip kodu":"Private tracking code","İnsan incelemesi":"Human review",
-"İnceleme kuyruğunu aç":"Open review queue","Destek rehberini aç":"Open support guide","Gizlilik":"Privacy",
-"Sinyal, karar değil":"A signal is not a decision","Hesap verebilirlik":"Accountability",
-}
-def _tr(s):
-    if not isinstance(s, str) or ss.get("dil", "Türkçe") != "English": return s
-    for a,b in sorted(_CEVIRI.items(), key=lambda x: len(x[0]), reverse=True): s=s.replace(a,b)
-    return s
+from i18n import (translate as _tr, format_timestamp, translate_structure, set_language, LANGUAGES, text_direction)
+
 for _k,_v in {"yonetici_giris":False,"yonetici_adi":"","son_etkinlik":0.0,"hatali_giris":0,"kilit_bitis":0.0,
               "form_surumu":0,"son_bildirim":None,"ana_menu":"Genel bakış","dil":"Türkçe"}.items():
     ss.setdefault(_k,_v)
+set_language(ss.get("dil", "Türkçe"))
 
 
 def flash(tur: str, mesaj: str) -> None:
@@ -147,8 +119,8 @@ def hiz_siniri(anahtar: str, pencere_sn: int, maks: int) -> tuple[bool, int]:
 
 
 def acil_hat_html() -> str:
-    parca = " · ".join(f"<b>{html.escape(n)}</b> {html.escape(a)}" for n, a in ACIL_HATLAR)
-    return f"<div class='emergency'>Acil bir tehlike varsa beklemeyin: {parca}</div>"
+    parca = " · ".join(f"<b>{html.escape(n)}</b> {html.escape(_tr(a))}" for n, a in ACIL_HATLAR)
+    return f"<div class='emergency'>{html.escape(_tr('Acil bir tehlike varsa beklemeyin:'))} {parca}</div>"
 
 
 def yonetici_gerekli() -> None:
@@ -170,13 +142,20 @@ def altbilgi() -> None:
 
 
 def pill(metin: str, sinif: str) -> str:
+    if metin.startswith("Sinyal: "):
+        metin = _tr("Sinyal:") + " " + _tr(metin.split(": ", 1)[1])
+    else:
+        metin = _tr(metin)
     return f"<span class='pill {sinif}'>{html.escape(metin)}</span>"
 
 
 def guvenli_metin(metin: str) -> None:
     """Kullanıcı kaynaklı metni Markdown/HTML olarak yorumlamadan gösterir (görsel/bağlantı enjeksiyonunu önler)."""
-    st.markdown("<div style='white-space:pre-wrap;word-break:break-word'>" + html.escape(metin or "") + "</div>",
-                unsafe_allow_html=True)
+    # Report descriptions and reviewer notes are user-authored data. Bypass the
+    # UI translation wrapper so their original wording is never altered.
+    original_markdown = getattr(st, "_guvenli_okul_originals", {}).get("markdown", st.markdown)
+    original_markdown("<div style='white-space:pre-wrap;word-break:break-word'>" + html.escape(metin or "") + "</div>",
+                      unsafe_allow_html=True)
 
 
 _IKON_YOLLARI = {
@@ -199,8 +178,8 @@ def ikon_rozeti(ad: str, renk: str) -> str:
 
 
 def kart(ikon: str, renk: str, baslik: str, metin: str) -> str:
-    return (f"<div class='soft-card'>{ikon_rozeti(ikon, renk)}<h3>{html.escape(baslik)}</h3>"
-            f"<p>{html.escape(metin)}</p></div>")
+    return (f"<div class='soft-card'>{ikon_rozeti(ikon, renk)}<h3>{html.escape(_tr(baslik))}</h3>"
+            f"<p>{html.escape(_tr(metin))}</p></div>")
 
 
 HERO_SVG = (
@@ -251,17 +230,18 @@ def _gunluk_ozet(kayitlar: list[dict]) -> None:
         acil_var=any(k.get("oncelik")=="Acil" for k in kritik)
         baslik="Acil öncelikli bildirim" if acil_var else "Yüksek öncelikli bildirim"
         st.markdown("<div class='emergency'><b>⚠ "+html.escape(_tr(baslik))+"</b> · "+
-                    str(len(kritik))+" aktif yüksek/acil öncelikli kayıt var. Yetkili personel tarafından insan incelemesi gerekir.</div>",
+                    str(len(kritik))+" "+_tr("aktif yüksek/acil öncelikli kayıt var. Yetkili personel tarafından insan incelemesi gerekir.")+"</div>",
                     unsafe_allow_html=True)
 
 # ============================================================ 1. GENEL BAKIŞ
 def sayfa_genel_bakis() -> None:
     st.markdown(
         "<div class='hero'><div class='hero-text'><div class='eyebrow'>GÜVENLİ OKUL</div>"
-        "<h1>Güvenli bir okul, herkesin hakkı.</h1>"
-        "<p>Zorbalığı kimliğini vermeden bildir, gizli kodunla durumu takip et.</p>"
-        "<div class='hero-pills'><span class='hero-pill'>Anonim</span><span class='hero-pill'>Gizli takip kodu</span>"
-        "<span class='hero-pill'>İnsan incelemesi</span></div></div>"
+        f"<h1>{html.escape(_tr('Güvenli bir okul, herkesin hakkı.'))}</h1>"
+        f"<p>{html.escape(_tr('Zorbalığı kimliğini vermeden bildir, gizli kodunla durumu takip et.'))}</p>"
+        f"<div class='hero-pills'><span class='hero-pill'>{html.escape(_tr('Anonim'))}</span>"
+        f"<span class='hero-pill'>{html.escape(_tr('Gizli takip kodu'))}</span>"
+        f"<span class='hero-pill'>{html.escape(_tr('İnsan incelemesi'))}</span></div></div>"
         f"<div class='hero-art'>{HERO_SVG}</div></div>",
         unsafe_allow_html=True,
     )
@@ -309,8 +289,8 @@ def sayfa_genel_bakis() -> None:
 
 # =========================================================== 2. YENİ BİLDİRİM
 def baslik_blogu(ust: str, baslik: str, aciklama: str = "") -> None:
-    st.markdown(f"<div class='page-heading'><div class='eyebrow-dark'>{html.escape(ust)}</div>"
-                f"<h1>{html.escape(baslik)}</h1>" + (f"<p>{html.escape(aciklama)}</p>" if aciklama else "")
+    st.markdown(f"<div class='page-heading'><div class='eyebrow-dark'>{html.escape(_tr(ust))}</div>"
+                f"<h1>{html.escape(_tr(baslik))}</h1>" + (f"<p>{html.escape(_tr(aciklama))}</p>" if aciklama else "")
                 + "</div>", unsafe_allow_html=True)
 
 
@@ -442,11 +422,11 @@ def sayfa_sorgula() -> None:
         f"<div class='record-banner'><div><div class='record-kicker'>TAKİP KODU</div>"
         f"<div class='record-id'>{html.escape(ozet['takip_no'])}</div></div>"
         f"{pill(ozet['durum'], DURUM_SINIF.get(ozet['durum'], 'status-waiting'))}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='durum-not'>{html.escape(DURUM_ACIKLAMA.get(ozet['durum'], ''))}</div>",
+    st.markdown(f"<div class='durum-not'>{html.escape(_tr(DURUM_ACIKLAMA.get(ozet['durum'], '')))}</div>",
                 unsafe_allow_html=True)
     c1, c2 = st.columns(2)
-    c1.metric("Oluşturulma", ozet["olusturma_zamani"])
-    c2.metric("Son güncelleme", ozet["son_guncelleme"] or "—")
+    c1.metric("Oluşturulma", format_timestamp(ozet["olusturma_zamani"], ss.get("dil", "Türkçe")))
+    c2.metric("Son güncelleme", format_timestamp(ozet["son_guncelleme"], ss.get("dil", "Türkçe")))
 
     st.markdown("#### Ek bilgi ekle")
     if not ozet["ek_uygun"]:
@@ -527,13 +507,13 @@ def sayfa_yonetici_girisi() -> None:
 def _kayit_detayi(k: dict) -> None:
     st.markdown("#### Bildirim ayrıntıları")
     a, b = st.columns(2)
-    a.markdown(f"**Olay türü**  \n{k['olay_turu']}\n\n**Ortam**  \n{k['ortam']}\n\n**Yaklaşık zaman**  \n{k['zaman_bilgisi']}")
-    b.markdown(f"**Tekrarlanma**  \n{k['tekrar_durumu']}\n\n**Oluşturulma**  \n{k['olusturma_zamani']}\n\n"
-               f"**Bildirim türü**  \n{'Anonim' if k['anonim'] else 'Kimlik bilgisi belirtilmiş'}")
+    a.markdown(f"**Olay türü**  \n{_tr(k['olay_turu'])}\n\n**Ortam**  \n{_tr(k['ortam'])}\n\n**Yaklaşık zaman**  \n{_tr(k['zaman_bilgisi'])}")
+    b.markdown(f"**Tekrarlanma**  \n{_tr(k['tekrar_durumu'])}\n\n**Oluşturulma**  \n{format_timestamp(k['olusturma_zamani'], ss.get('dil', 'Türkçe'))}\n\n"
+               f"**Bildirim türü**  \n{_tr('Anonim' if k['anonim'] else 'Kimlik bilgisi belirtilmiş')}")
     if not k["anonim"]:
         with st.expander("Bildirimde belirtilen kişi bilgileri"):
-            guvenli_metin(f"Ad soyad: {(k['ad'] or 'Belirtilmedi')} {k['soyad'] or ''}")
-            guvenli_metin(f"Sınıf: {k['sinif'] or 'Belirtilmedi'}")
+            guvenli_metin(f"{_tr('Ad soyad:')} {(k['ad'] or _tr('Belirtilmedi'))} {k['soyad'] or ''}")
+            guvenli_metin(f"{_tr('Sınıf:')} {_tr(k['sinif'] or 'Belirtilmedi')}")
 
     kategori_metin = ((k.get("olay_turu") or "") + " " + (k.get("kategoriler") or "")).casefold()
     tavsiyeler = None
@@ -559,7 +539,7 @@ def _kayit_detayi(k: dict) -> None:
         st.markdown("#### " + _tr("Rehberlik için önerilen adımlar"))
         with st.container(border=True):
             st.info("Genel kontrol listesidir; okul psikolojik danışmanı ve kurum protokolü tarafından uyarlanmalıdır.")
-            for madde in tavsiyeler: st.markdown("- " + madde)
+            for madde in tavsiyeler: st.markdown("- " + _tr(madde))
 
     st.markdown("**Açıklama**")
     with st.container(border=True):
@@ -569,16 +549,19 @@ def _kayit_detayi(k: dict) -> None:
         st.markdown(f"**Anonim gönderenin ek bilgileri ({len(ekler)})**")
         for e in ekler:
             with st.container(border=True):
-                st.caption(e["zaman"])
+                st.caption(format_timestamp(e["zaman"], ss.get("dil", "Türkçe")))
                 guvenli_metin(e["metin"])
     with st.expander("Otomatik sinyal ve değerlendirme notu", expanded=k["oncelik"] in ("Acil", "Yüksek")):
         st.write(f"**Öncelik sinyali:** {k['oncelik']}")
-        st.write(f"**Kategoriler:** {k['kategoriler'] or '—'}")
-        st.write(f"**Eşleşen ifadeler:** {k['eslesmeler'] or 'Belirgin eşleşme yok'}")
+        kategori_goster = ", ".join(_tr(x) for x in (k["kategoriler"] or "").split(", ") if x)
+        st.write(f"**Kategoriler:** {kategori_goster or '—'}")
+        st.markdown(f"**{_tr('Eşleşen ifadeler:')}**")
+        guvenli_metin(k["eslesmeler"] or _tr("Belirgin eşleşme yok"))
         for u in filter(None, (k["baglam_uyarilari"] or "").split(" | ")):
-            st.warning(u)
+            st.warning(_tr(u))
         if k["maskelenen"]:
-            st.caption(f"Açıklamada otomatik maskelenen bilgi türleri: {k['maskelenen']}")
+            maskeli_turler = ", ".join(_tr(x) for x in (k["maskelenen"] or "").split(", "))
+            st.caption(f"Açıklamada otomatik maskelenen bilgi türleri: {maskeli_turler}")
         # Basit kalite kontrolü: kayıt silmez; yalnızca incelemeciye dikkat notu verir.
         aciklama_kontrol = (k.get("aciklama") or "").strip()
         kelimeler = [parca for parca in aciklama_kontrol.split() if any(ch.isalnum() for ch in parca)]
@@ -634,7 +617,7 @@ def _inceleme_formlari(k: dict) -> None:
             st.caption("Henüz not eklenmemiş.")
         for n in notlar:
             with st.container(border=True):
-                st.caption(f"{n['zaman']} · {n['yazar'] or '—'}")
+                st.caption(f"{format_timestamp(n['zaman'], ss.get('dil', 'Türkçe'))} · {n['yazar'] or '—'}")
                 guvenli_metin(n["not_metni"])
     with gecmis_k:
         st.markdown("#### İşlem geçmişi")
@@ -644,7 +627,7 @@ def _inceleme_formlari(k: dict) -> None:
         for g in gecmis:
             with st.container(border=True):
                 st.markdown(f"**{g['islem']}**")
-                st.caption(f"{g['zaman']} · {g['aktor'] or '—'}")
+                st.caption(f"{format_timestamp(g['zaman'], ss.get('dil', 'Türkçe'))} · {g['aktor'] or '—'}")
                 if g["ayrinti"]:
                     st.write(g["ayrinti"])
 
@@ -709,10 +692,10 @@ def _kayitlar_sekmesi(kayitlar: list[dict]) -> None:
             return
         secenekler = [k["takip_no"] for k in gorunen]
         ek_say = db.ek_sayilari()
-        etiket = {k["takip_no"]: f"{k['takip_no']} · {k['olay_turu']} · {k['oncelik']} · {k['durum']}"
-                  + (f" · {db.gecen_saat(k['olusturma_zamani']):.1f} saat bekliyor" if k["durum"] == "İnceleme bekliyor" else "")
-                  + (f" · +{ek_say[k['takip_no']]} ek bilgi" if k["takip_no"] in ek_say else "")
-                  + (" · GECİKMİŞ" if k["durum"] == "İnceleme bekliyor" and db.gecen_saat(k["olusturma_zamani"]) > SLA_SAAT else "")
+        etiket = {k["takip_no"]: f"{k['takip_no']} · {_tr(k['olay_turu'])} · {_tr(k['oncelik'])} · {_tr(k['durum'])}"
+                  + (f" · {db.gecen_saat(k['olusturma_zamani']):.1f} {_tr('saat bekliyor')}" if k["durum"] == "İnceleme bekliyor" else "")
+                  + (f" · +{ek_say[k['takip_no']]} {_tr('ek bilgi')}" if k["takip_no"] in ek_say else "")
+                  + (" · " + _tr("GECİKMİŞ") if k["durum"] == "İnceleme bekliyor" and db.gecen_saat(k["olusturma_zamani"]) > SLA_SAAT else "")
                   for k in gorunen}
         if ss.get("inceleme_secili") not in secenekler:
             ss["inceleme_secili"] = secenekler[0]   # widget oluşturulmadan ÖNCE atama güvenlidir
@@ -743,7 +726,7 @@ def sayfa_inceleme() -> None:
         st.caption("Girişler, başarısız denemeler, dışa aktarımlar ve silme işlemleri burada izlenir.")
         satirlar = db.denetim_getir()
         if satirlar:
-            st.dataframe([{"Zaman": r["zaman"], "Kullanıcı": r["aktor"], "İşlem": r["islem"],
+            st.dataframe([{"Zaman": format_timestamp(r["zaman"], ss.get("dil", "Türkçe")), "Kullanıcı": r["aktor"], "İşlem": r["islem"],
                            "Ayrıntı": r["ayrinti"]} for r in satirlar], hide_index=True)
         else:
             st.info("Henüz denetim kaydı yok.")
@@ -768,7 +751,10 @@ def sayfa_inceleme() -> None:
 
 # ========================================================== 6. İSTATİSTİKLER
 def _saat_metni(o: dict) -> str:
-    return "Veri yok" if not o["n"] else f"{o['medyan']:.1f} sa (n={o['n']})"
+    if not o["n"]:
+        return _tr("Veri yok")
+    birim = "h" if ss.get("dil") == "English" else "sa"
+    return f"{o['medyan']:.1f} {birim} (n={o['n']})"
 
 
 def sayfa_istatistikler() -> None:
@@ -798,7 +784,15 @@ def sayfa_istatistikler() -> None:
         st.bar_chart(s["tur"], horizontal=True)
         st.subheader("Son 30 gün: günlük bildirim")
         if s["gunluk"]:
-            st.bar_chart(dict(s["gunluk"]))
+            gunluk_veri = {}
+            for gun, adet in s["gunluk"]:
+                try:
+                    dt = datetime.strptime(gun, "%Y-%m-%d")
+                    etiket = dt.strftime("%d.%m") if ss.get("dil") != "English" else f"{('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')[dt.month - 1]} {dt.day:02d}"
+                except ValueError:
+                    etiket = gun
+                gunluk_veri[etiket] = adet
+            st.bar_chart(gunluk_veri)
         else:
             st.caption("Bu dönemde kayıt yok.")
     st.caption("Süreler kayıt oluşturma ile ilk durum değişikliği / 'Sonuçlandırıldı' arasındaki farktır. "
@@ -831,7 +825,7 @@ def _degerlendirme_sekmesi() -> None:
     st.write("Algılayıcının sentetik (elle yazılmış, gerçek veri içermeyen) örnek kümesindeki performansını ölçer. "
              "Aynı ölçüm komut satırından `python -m unittest discover -s testler` ile de çalışır.")
     st.caption(f"Algılayıcı sürümü: {ht.SURUM} · Sözlük: {sum(ht.sozluk_ozeti().values())} ifade, "
-               + ", ".join(f"{k}: {v}" for k, v in ht.sozluk_ozeti().items()))
+               + ", ".join(f"{_tr(k)}: {v}" for k, v in ht.sozluk_ozeti().items()))
     if st.button("Değerlendirmeyi çalıştır", type="primary"):
         ss["degerlendirme_sonucu"] = degerlendirme.degerlendir()
     r = ss.get("degerlendirme_sonucu")
@@ -897,7 +891,7 @@ def sayfa_guvenli_kullanim() -> None:
     st.markdown(acil_hat_html(), unsafe_allow_html=True)
     st.subheader("Platformun işlevleri")
     st.markdown("""
-- Tam anonim bildirim alır (ad, sınıf, telefon istenmez; zaman saate yuvarlanır); günde bir bildirim hakkı vardır.
+- Tam anonim bildirim alır (ad, sınıf, telefon istenmez; zaman dakika ve saniye hassasiyetinde kaydedilir); günde bir bildirim hakkı vardır.
 - Açıklamadaki telefon, T.C. kimlik numarası, e-posta ve IBAN'ı otomatik maskeler.
 - Takip koduyla durum sorgulamaya ve (anonim kayıtlarda, aynı gün) ek bilgi eklemeye izin verir.
 - Yönetici girişinden sonra kayıtları listeler; durum/birim günceller; not ve işlem geçmişi tutar.
@@ -1039,20 +1033,40 @@ if ss.get("ana_menu") not in SAYFALAR:
 secili_sayfa = ss["ana_menu"]
 
 with st.sidebar:
-    st.selectbox("Dil / Language", ["Türkçe", "English"], key="dil")
-    if ss.get("dil") == "English":
+    st.selectbox("Dil / Language", list(LANGUAGES.keys()), key="dil")
+    set_language(ss.get("dil", "Türkçe"))
+    # Arabic uses right-to-left reading order while preserving the Latin tracking codes.
+    if text_direction(ss.get("dil")) == "rtl":
+        st.markdown("""<style>
+        [data-testid="stAppViewContainer"] { direction: rtl; }
+        [data-testid="stSidebar"] { direction: rtl; }
+        [data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"] { text-align: right; }
+        input, textarea { direction: rtl; text-align: right; }
+        code, .stCode, input[placeholder^="GO-"] { direction: ltr !important; text-align: left !important; }
+        [data-testid="stMetric"] { text-align: right; }
+        </style>""", unsafe_allow_html=True)
+    else:
+        st.markdown("<style>[data-testid='stAppViewContainer'],[data-testid='stSidebar']{direction:ltr}</style>", unsafe_allow_html=True)
+    if not getattr(st, "_guvenli_okul_i18n_wrapped", False):
+        _originals = {}
         for _component in ("markdown","write","caption","title","header","subheader","info","warning","error","success",
                            "button","text_input","text_area","checkbox","form_submit_button","metric","tabs",
-                           "selectbox","radio","date_input","number_input","download_button"):
+                           "selectbox","radio","date_input","number_input","download_button","expander","slider",
+                           "dataframe","table","bar_chart","progress"):
             _original = getattr(st, _component)
+            _originals[_component] = _original
             def _translated(*args, __fn=_original, __name=_component, **kwargs):
+                if st.session_state.get("dil", "Türkçe") == "Türkçe":
+                    return __fn(*args, **kwargs)
                 if args:
                     first = args[0]
                     if isinstance(first, str):
                         args = (_tr(first),) + args[1:]
-                    elif __name == "tabs" and isinstance(first, (list,tuple)):
+                    elif isinstance(first, (list,tuple)) and __name in ("tabs",):
                         args = ([_tr(x) for x in first],) + args[1:]
-                for _key in ("label","help","placeholder"):
+                    elif __name in ("dataframe", "table", "bar_chart"):
+                        args = (translate_structure(first, ss.get("dil", "Türkçe")),) + args[1:]
+                for _key in ("label","help","placeholder","text"):
                     if isinstance(kwargs.get(_key), str):
                         kwargs[_key] = _tr(kwargs[_key])
                 if __name in ("selectbox","radio") and len(args) > 1 and isinstance(args[1], (list,tuple)):
@@ -1060,6 +1074,8 @@ with st.sidebar:
                     kwargs["format_func"] = lambda value, _f=_onceki_format: _tr(str(_f(value)))
                 return __fn(*args, **kwargs)
             setattr(st, _component, _translated)
+        st._guvenli_okul_originals = _originals
+        st._guvenli_okul_i18n_wrapped = True
     _logo = _logo_veri_adresi()
     if _logo:
         st.markdown(f"<div class='sb-logo'><img src='{_logo}' alt='Bozüyük Fen Lisesi logosu'></div>",
@@ -1072,13 +1088,13 @@ with st.sidebar:
             kilit = ad in KORUMALI and not ss.yonetici_giris
             st.button(_tr(ad), key=f"nav_{ad}", icon=":material/lock:" if kilit else f":material/{ikon}:",
                       type="primary" if ad == secili_sayfa else "secondary", on_click=sayfaya_git, args=(ad,))
-    st.markdown("<div class='nav-title'>OTURUM</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='nav-title'>{_tr('OTURUM')}</div>", unsafe_allow_html=True)
     if ss.yonetici_giris:
         st.caption(f"Yönetici: {ss.yonetici_adi}")
         st.button("Oturumu kapat", on_click=oturumu_kapat, key="oturum_kapat", icon=":material/logout:")
     else:
         st.caption("Ziyaretçi (giriş yapılmadı)")
-    st.caption("Acil: " + " · ".join(n for n, _ in ACIL_HATLAR))
+    st.caption(_tr("Acil:") + " " + " · ".join(n for n, _ in ACIL_HATLAR))
     st.caption(f"Sürüm 2.0 · Algılayıcı {ht.SURUM}")
 
 st.markdown(
